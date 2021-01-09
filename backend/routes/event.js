@@ -222,8 +222,6 @@ module.exports = (app) => {
       const event = await Event.findById(_id);
 
       if (teamsize === 1) {
-        //deleting from event
-
         
         if(event.registeredplayerinfo !== null){
           let playersInfo = event.registeredplayerinfo;
@@ -266,25 +264,24 @@ module.exports = (app) => {
             }
           }
         }
-
-        Event.deleteOne({ _id: _id }, (err) => {
-          if (err) return handleError(err);
-        });
-
-        const host = await HostProfile.findOne({ user: req.user.id });
-        if (host.myhostedevents !== null) {
-          let myHostedEvent = host.myhostedevents;
-
-          myHostedEvent = myHostedEvent.filter(
-            (event) => event._id.toString() !== _id
-          );
-
-          host.myhostedevents = myHostedEvent;
-          await host.save();
-        }
-
-        res.json(host);
       }
+
+      Event.deleteOne({ _id: _id }, (err) => {
+        if (err) return console.log(err)
+      });
+
+      const host = await HostProfile.findOne({ user: req.user.id });
+      if (host.myhostedevents !== null) {
+        let myHostedEvent = host.myhostedevents;
+
+        myHostedEvent = myHostedEvent.filter(
+          (event) => event._id.toString() !== _id
+        );
+
+        host.myhostedevents = myHostedEvent;
+        await host.save();
+      }
+      res.json(host);
     } catch (err) {
       console.error(err.message);
       return res.status(404).json({ errors: [{ msg: err.message }] });
@@ -396,44 +393,53 @@ module.exports = (app) => {
     }
   });
 
-  app.post("/api/event/postreview/:eventId", verify, async (req, res) => {
-    const { reviewInfo, hostedById } = req.body;
+  app.post("/api/event/get-review/:hostId", verify, async(req, res) => {
+    try{
+      const host = await HostProfile.findOne({user: req.params.hostId});
+      res.json(host.reviews);
+    }catch(err){
+      console.log('error form getReview: ',err.message)
+    }
+  }) 
+
+  app.post("/api/event/post-review/:eventId", verify, async (req, res) => {
+    const { reviewInfo, hostId } = req.body;
     try {
       let editreview = false;
-      let event = await Event.findOne({ _id: req.params.eventId });
-      let hostProfile = await HostProfile.findOne({ user: hostedById });
+      let user = await User.findById(req.user.id)
+      // let event = await Event.findOne({ _id: req.params.eventId });
+      let hostProfile = await HostProfile.findOne({ user: hostId });
+      const reviewDetails = {};
+      reviewDetails.name = user.name;
+      reviewDetails.username = user.username
+      reviewDetails.rating = reviewInfo.rating;
+      reviewDetails.reviewText = reviewInfo.reviewText;
+      reviewDetails.game = reviewInfo.game;
+      reviewDetails.tournamentName = reviewInfo.tournamentName;
 
-      if (
-        event.reviews.filter(
-          (review) => review.username === reviewInfo.username
-        ).length > 0
-      ) {
-        event.reviews.forEach((review) => {
-          if (review.username === reviewInfo.username) {
-            review = reviewInfo;
-          }
-        });
-        editreview = true;
-      } else {
-        event.reviews.push(reviewInfo);
-      }
-      await event.save();
-
-      let arr = hostProfile.myhostedevents;
-      for (i = 0; i < arr.length; i++) {
-        if (arr[i]._id.toString() == req.params.eventId) {
-          if (editreview) {
-            arr[i].reviews = event.reviews;
-          }
-          arr[i].reviews.push(reviewInfo);
+      let reviews = hostProfile.reviews;
+      let foundReview = false
+      for(let review of reviews){
+        if((review.tournamentName === reviewDetails.tournamentName) && 
+          (review.username === reviewDetails.username))
+        {
+          foundReview = true;
+          break
         }
       }
-
-      await hostProfile.save();
-
-      res.status(200).json(hostProfile.myhostedevents);
+      if(!foundReview){
+        reviews.push(reviewDetails)
+        await hostProfile.save();
+        return res.status(200).json({
+          success: { msg: "Thank You for Reviewing!" },
+        });
+      }else{
+        return res.status(200).json({
+          success: { msg: "You have already Reviewed!" },
+        });
+      }
     } catch (err) {
-      console.error(err.message);
+      console.error('error form postReview: ',err.message);
       res.status(500).send("Server Error");
     }
   });

@@ -4,7 +4,7 @@ import { Text, Card, Button, Icon, Image } from "react-native-elements";
 import { gameImage } from "../../../shared/gameImage";
 import moment from 'moment';
 import { useSelector, useDispatch } from "react-redux";
-import { deleteMyEvent, fetchEventDetails } from "../../../Redux/actions/event";
+import { deleteMyEvent } from "../../../Redux/actions/event";
 import { MaterialCommunityIcons } from '@expo/vector-icons'; 
 import ConfirmModal from "../../../shared/confirmModal";
 import MyEventCard from "../../../components/myEventCard";
@@ -12,6 +12,7 @@ import MyEventCard from "../../../components/myEventCard";
 const MyEventDetails = ({ item, navigation, deleteEvent}) => {
   const [imageUri, setImageUri] = useState("sd");
   const [modalOpen, setModalOpen] = useState(false);
+  const [isEventOver, setIsEventOver] = useState(false)
 
   const {currentUserUsername, eventDetail} = useSelector((state) => ({
     currentUserUsername: state.profile.userProfile.username,
@@ -27,15 +28,27 @@ const MyEventDetails = ({ item, navigation, deleteEvent}) => {
     navigation.navigate('My Event Details', { item, eventDetail })
   }
 
-  useEffect(() => {
-    
-    if (item.game === "PUBG") {
-      setImageUri(gameImage.pubg.uri);
-    } else if (item.game === "COD") {
-      setImageUri(gameImage.cod.uri);
-    } else {
-      setImageUri(gameImage.clashRoyale.uri);
+  const checkDate = (eventDate) => {
+    const currentDate = new Date(); 
+    eventDate = new Date(eventDate);
+    if(currentDate.getTime() > eventDate.getTime()){
+      setIsEventOver(true)
     }
+  }
+
+  useEffect(() => {
+    if (item.game === 'PUBG') {
+      setImageUri(gameImage.pubg.uri);
+    } else if (item.game === 'COD') {
+      setImageUri(gameImage.cod.uri);
+    } else if (item.game === 'Clash Royale') {
+      setImageUri(gameImage.clashRoyale.uri);
+    } else{
+      setImageUri(gameImage.coc.uri)
+    }
+
+    checkDate(item.time)
+
   }, []);
 
   return (
@@ -46,41 +59,61 @@ const MyEventDetails = ({ item, navigation, deleteEvent}) => {
         modalOpen={modalOpen} 
         handleOk={handleSubmit}
       />
-      <MyEventCard 
-        item={item}
-        handleSubmit={showDetails}
-        imageUri={imageUri}
-      />
-      <View>
-        <Button
-          buttonStyle={styles.btnStyle}
-          onPress={showDetails}
-          title="TEAM INFO"
+      <View style={styles.cardView}>
+        <MyEventCard 
+          item={item}
+          isEventOver={isEventOver}
+          handleSubmit={showDetails}
+          imageUri={imageUri}
         />
-        <Button
-          buttonStyle={styles.btnStyleDelete}
-          icon={<MaterialCommunityIcons name="cancel" size={15} color='#fff' />}
-          onPress={() => setModalOpen(true)}
-          title="EXIT"
-        />
+        <View style={styles.mainBtnContainer}>
+          <View style={styles.buttonContainer}>
+            <Button
+              buttonStyle={styles.btnStyle}
+              onPress={showDetails}
+              title="TEAM INFO"
+            />
+          </View>
+          <View style={styles.buttonContainer}>
+            <Button
+              buttonStyle={styles.btnStyleDelete}
+              icon={<MaterialCommunityIcons name="cancel" size={15} color='#fff' />}
+              onPress={() => setModalOpen(true)}
+              title="EXIT"
+            />
+          </View>
+        </View>
       </View>
     </>
   );
 };
 
 const styles = StyleSheet.create({
+  mainBtnContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 5,
+  },
+  cardView: {
+    padding: 10,
+    margin: 10,
+    marginBottom: 5,
+    borderRadius: 12,
+    backgroundColor: '#232931',
+    elevation: 4,
+    shadowColor: '#4ecca3',
+  },
+  buttonContainer: {
+    flex: 1,
+  },
   btnStyleDelete:{
-    backgroundColor: '#d9534f',
+    backgroundColor: 'transparent',
     borderRadius: 0,
-    marginBottom: 20,
-    borderBottomLeftRadius: 5,
-    borderBottomRightRadius: 5
   },
   btnStyle:{
     borderRadius: 0,
-    // marginBottom: 20,
-    borderBottomLeftRadius: 5,
-    borderBottomRightRadius: 5
   },
 })
 
